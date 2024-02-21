@@ -188,7 +188,7 @@ impl Error {
         &self,
         max_wire_version: i32,
         server_type: Option<ServerType>,
-        is_reply_ok: Option<bool>,
+        _is_reply_ok: Option<bool>,
     ) -> bool {
         if max_wire_version > 8 {
             return self.is_network_error();
@@ -197,9 +197,19 @@ impl Error {
             return true;
         }
 
-        if server_type == Some(ServerType::Mongos) && is_reply_ok == Some(true) {
+        // could also add this as a method on Error
+        let is_write_concern_error = match *self.kind {
+            ErrorKind::Write(WriteFailure::WriteConcernError(_)) => true,
+            _ => false,
+        };
+
+        if server_type == Some(ServerType::Mongos) && is_write_concern_error {
             return false;
         }
+
+        // if server_type == Some(ServerType::Mongos) && is_reply_ok == Some(true) {
+        //     return false;
+        // }
 
         match &self.sdam_code() {
             Some(code) => RETRYABLE_WRITE_CODES.contains(code),
