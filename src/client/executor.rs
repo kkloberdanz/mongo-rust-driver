@@ -619,26 +619,6 @@ impl Client {
         })
         .await;
 
-        fn try_get_integer(raw_doc: &RawDocument, key: &str) -> Result<i64> {
-            let val = match raw_doc.get(key)? {
-                Some(b) => {
-                    crate::bson_util::get_int_raw(b).ok_or_else(|| ErrorKind::InvalidResponse {
-                        message: format!(
-                            "expected '{}' value to be a number, instead got {:?}",
-                            key, b
-                        ),
-                    })?
-                }
-                None => {
-                    return Err(ErrorKind::InvalidResponse {
-                        message: format!("missing '{}' value in response", key),
-                    }
-                    .into())
-                }
-            };
-            Ok(val)
-        }
-
         let start_time = Instant::now();
         let command_result = match connection.send_message(message, should_compress).await {
             Ok(response) => {
@@ -651,7 +631,22 @@ impl Client {
                 ) -> Result<RawCommandResponse> {
                     let raw_doc = RawDocument::from_bytes(response.as_bytes())?;
 
-                    let ok = try_get_integer(raw_doc, "ok")?;
+                    let ok = match raw_doc.get("ok")? {
+                        Some(b) => crate::bson_util::get_int_raw(b).ok_or_else(|| {
+                            ErrorKind::InvalidResponse {
+                                message: format!(
+                                    "expected ok value to be a number, instead got {:?}",
+                                    b
+                                ),
+                            }
+                        })?,
+                        None => {
+                            return Err(ErrorKind::InvalidResponse {
+                                message: "missing 'ok' value in response".to_string(),
+                            }
+                            .into())
+                        }
+                    };
 
                     let cluster_time: Option<ClusterTime> = raw_doc
                         .get("$clusterTime")?
