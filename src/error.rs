@@ -180,7 +180,6 @@ impl Error {
         self.contains_label(RETRYABLE_WRITE_ERROR)
     }
 
-    // method on Error
     fn is_write_concern_error(&self) -> bool {
         match *self.kind {
             ErrorKind::Write(WriteFailure::WriteConcernError(_)) => true,
@@ -201,7 +200,6 @@ impl Error {
         &self,
         max_wire_version: i32,
         server_type: Option<ServerType>,
-        _is_reply_ok: Option<bool>,
     ) -> bool {
         if max_wire_version > 8 {
             return self.is_network_error();
